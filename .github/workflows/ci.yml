@@ -38,3 +38,6 @@ jobs:
       with:
         username: ${{ vars.DOCKER_USER_NAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: docker image push
+      run: docker push sreekuttan121/testing_repo:v1
