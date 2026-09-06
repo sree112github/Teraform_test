@@ -55,13 +55,21 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
+            # Install Docker based on OS (Ubuntu vs Amazon Linux)
             if ! command -v docker &> /dev/null; then
-              sudo yum update -y
-              sudo yum install -y docker
-              sudo service docker start
-              sudo usermod -a -G docker ec2-user
+              if command -v apt-get &> /dev/null; then
+                sudo apt-get update -y
+                sudo apt-get install -y docker.io
+              else
+                sudo yum update -y
+                sudo yum install -y docker
+              fi
+              sudo systemctl start docker || sudo service docker start
+              sudo systemctl enable docker || true
             fi
-
+            
+            # Force fix Docker socket permissions to prevent "permission denied" errors
+            sudo chmod 666 /var/run/docker.sock || true
       - name: Step 2 - Login to Docker Hub
         uses: appleboy/ssh-action@v1
         env:
