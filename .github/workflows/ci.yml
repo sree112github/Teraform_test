@@ -47,7 +47,22 @@ jobs:
     needs: build-and-test
 
     steps:
-      - name: Deploy to EC2 using SSH
+      - name: Step 1 - Install Docker on EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            if ! command -v docker &> /dev/null; then
+              sudo yum update -y
+              sudo yum install -y docker
+              sudo service docker start
+              sudo usermod -a -G docker ec2-user
+            fi
+
+      - name: Step 2 - Login to Docker Hub
         uses: appleboy/ssh-action@v1
         env:
           DOCKER_USERNAME: ${{ vars.DOCKER_USER_NAME }}
@@ -59,15 +74,17 @@ jobs:
           port: 22
           envs: DOCKER_USERNAME,DOCKER_PASSWORD
           script: |
-            # Login to Docker Hub on the EC2 instance
             echo "$DOCKER_PASSWORD" | sudo docker login -u "$DOCKER_USERNAME" --password-stdin
-            
-            # Pull the latest image
+
+      - name: Step 3 - Deploy Application
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
             sudo docker pull sreekuttan121/testing_repo:v1
-            
-            # Stop and remove the old container if it exists
             sudo docker stop my-go-app || true
             sudo docker rm my-go-app || true
-            
-            # Run the new container on port 8080
-            sudo docker run -d -p 8080:8080 --name my-go-app sreekuttan121/testing_repo:v1
+            sudo docker run -d -p 8080:8080 --name my-go-app sreekuttan121/testing_repo:v1 
